@@ -13,6 +13,7 @@ dependencies = [
   "httpx>=0.27,<1",
   "pydantic>=2.7,<3",
   "psycopg[binary]>=3.1,<4",
+  "python-dotenv>=1.0,<2",
   "tenacity>=8.2,<10",
   "typer>=0.12,<1",
 ]
@@ -29,6 +30,10 @@ twitter-pipeline = "twitter_app.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["twitter_app*"]
+
+[tool.setuptools.package-data]
+twitter_app = ["schema.sql"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

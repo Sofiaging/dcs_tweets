@@ -1,5 +1,5 @@
 install:
-	python3 -m pip install -e '.[dev]'
+	python3 -m pip install '.[dev]'
 
 check:
 	ruff check .
