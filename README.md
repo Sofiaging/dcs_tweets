@@ -21,7 +21,17 @@ docker compose up -d postgres minio
 python -m twitter_app.cli init-db
 ```
 
-Set `X_BEARER_TOKEN`, `ANONYMIZATION_SECRET`, and storage/database settings in `.env` before extraction. Local MinIO uses the S3 endpoint in `.env.example`.
+Mock mode is enabled by default in `.env.example`, so extraction does not require X credentials:
+
+```dotenv
+X_USE_MOCK_DATA=true
+X_USE_FULL_ARCHIVE=false
+```
+
+`MockTweetSource` deterministically generates one X-shaped tweet per configured time chunk. To
+call X instead, set `X_USE_MOCK_DATA=false` and provide `X_BEARER_TOKEN`. Set
+`X_USE_FULL_ARCHIVE=true` to select the full-archive endpoint; otherwise the recent-search endpoint
+is used. Local MinIO uses the S3 endpoint in `.env.example`.
 
 ```bash
 twitter-pipeline extract --start 2026-01-01T00:00:00Z --end 2026-01-02T00:00:00Z

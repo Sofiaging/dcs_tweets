@@ -3,8 +3,6 @@ import hmac
 from datetime import datetime
 from typing import Any
 
-from pydantic import ValidationError
-
 from .models import TweetRecord
 
 
@@ -22,7 +20,6 @@ def normalize_payload(payload: dict[str, Any], secret: str) -> list[TweetRecord]
             continue
         user = users.get(author_id, {})
         metrics = user.get("public_metrics", {})
-        tweet_metrics = tweet.get("public_metrics", {})
         entities = tweet.get("entities", {})
         hashtags = [item["tag"] for item in entities.get("hashtags", []) if item.get("tag")]
         references = tweet.get("referenced_tweets", [])
@@ -34,7 +31,7 @@ def normalize_payload(payload: dict[str, Any], secret: str) -> list[TweetRecord]
                 follower_count=metrics.get("followers_count"),
                 tweeted_at=datetime.fromisoformat(created_at.replace("Z", "+00:00")),
                 hashtags=hashtags,
-                tweet_count=tweet_metrics.get("impression_count"),
+                tweet_count=metrics.get("tweet_count"),
                 is_retweet=any(ref.get("type") == "retweeted" for ref in references),
             )
         )

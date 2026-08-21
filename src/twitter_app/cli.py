@@ -6,7 +6,7 @@ import typer
 from .config import Settings
 from .db import PostgresRepository
 from .pipeline import extract, load
-from .source import XApiSource
+from .source import MockTweetSource, XApiSource
 from .storage import S3RawStore
 
 app = typer.Typer(help="Extract and load #ChargeNow tweets.")
@@ -37,12 +37,26 @@ def extract_tweets(
     settings = Settings.from_env()
     start_timestamp = parse_timestamp(start)
     end_timestamp = parse_timestamp(end)
+    source = (
+        MockTweetSource()
+        if settings.x_use_mock_data
+        else XApiSource(
+            settings.x_bearer_token,
+            settings.api_page_size,
+            settings.x_use_full_archive,
+        )
+    )
     run_id = extract(
         start_timestamp,
         end_timestamp,
         settings.chunk_hours,
-        XApiSource(settings.x_bearer_token, settings.api_page_size),
-        S3RawStore(settings.s3_bucket, settings.s3_endpoint_url, settings.s3_region, settings.aws_profile),
+        source,
+        S3RawStore(
+            settings.s3_bucket,
+            settings.s3_endpoint_url,
+            settings.s3_region,
+            settings.aws_profile,
+        ),
         PostgresRepository(settings.database_url),
     )
     typer.echo(run_id)

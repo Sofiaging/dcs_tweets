@@ -12,11 +12,14 @@ def test_normalize_payload_extracts_required_fields() -> None:
             "id": "tweet-1",
             "author_id": "user-1",
             "created_at": "2026-01-01T12:00:00Z",
-            "public_metrics": {"impression_count": 7},
             "entities": {"hashtags": [{"tag": "ChargeNow"}]},
             "referenced_tweets": [{"type": "retweeted", "id": "old"}],
         }],
-        "includes": {"users": [{"id": "user-1", "location": "Sofia", "public_metrics": {"followers_count": 12}}]},
+        "includes": {"users": [{
+            "id": "user-1",
+            "location": "Sofia",
+            "public_metrics": {"followers_count": 12, "tweet_count": 7},
+        }]},
     }
     record = normalize_payload(payload, "secret")[0]
     assert record.tweet_id == "tweet-1"
