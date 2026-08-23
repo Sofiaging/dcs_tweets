@@ -9,6 +9,18 @@ class TweetSource(Protocol):
     def search(self, start: datetime, end: datetime) -> dict[str, Any]: ...
 
 
+class SourceResponseError(ValueError):
+    """The source returned a response with an incompatible structure."""
+
+
+def response_items(container: dict[str, Any], key: str, path: str) -> list[dict[str, Any]]:
+    """Return an optional list of objects, rejecting incompatible API changes."""
+    value = container.get(key, [])
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise SourceResponseError(f"Expected {path} to be a list of objects")
+    return value
+
+
 class MockTweetSource:
     """Generate deterministic X-shaped data without making network requests."""
 
@@ -83,14 +95,25 @@ class XApiSource:
             response = self.client.get(self.endpoint, params=params)
             response.raise_for_status()
             page = response.json()
+            if not isinstance(page, dict):
+                raise SourceResponseError("Expected the X API response to be a JSON object")
             page_count += 1
 
-            tweets.extend(page.get("data", []))
-            for user in page.get("includes", {}).get("users", []):
+            tweets.extend(response_items(page, "data", "data"))
+
+            includes = page.get("includes", {})
+            if not isinstance(includes, dict):
+                raise SourceResponseError("Expected includes to be a JSON object")
+            for user in response_items(includes, "users", "includes.users"):
                 if user_id := user.get("id"):
                     users_by_id[user_id] = user
 
-            next_token = page.get("meta", {}).get("next_token")
+            meta = page.get("meta", {})
+            if not isinstance(meta, dict):
+                raise SourceResponseError("Expected meta to be a JSON object")
+            next_token = meta.get("next_token")
+            if next_token is not None and not isinstance(next_token, str):
+                raise SourceResponseError("Expected meta.next_token to be a string")
             if not next_token:
                 break
             params["pagination_token"] = next_token

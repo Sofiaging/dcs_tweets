@@ -32,3 +32,28 @@ def test_normalize_payload_extracts_required_fields() -> None:
 
 def test_empty_payload_is_valid() -> None:
     assert normalize_payload({}, "secret") == []
+
+
+def test_normalization_ignores_unknown_fields_and_defaults_optional_fields() -> None:
+    payload = {
+        "data": [{
+            "id": "tweet-2",
+            "author_id": "user-2",
+            "created_at": "2026-01-01T12:00:00Z",
+            "a_new_tweet_field": "ignored",
+        }],
+        "includes": {"users": [{
+            "id": "user-2",
+            "a_new_user_field": "ignored",
+        }]},
+        "a_new_top_level_field": "ignored",
+    }
+
+    record = normalize_payload(payload, "secret")[0]
+
+    assert record.tweet_id == "tweet-2"
+    assert record.location is None
+    assert record.follower_count is None
+    assert record.hashtags == []
+    assert record.tweet_count is None
+    assert record.is_retweet is False

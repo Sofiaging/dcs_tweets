@@ -8,6 +8,29 @@ The loader reads only successful raw objects. It validates the provider envelope
 
 Transient API failures retry with exponential backoff. A failed chunk is marked independently, so a later retry does not repeat successful chunks. Empty results are valid successful chunks. Source payloads remain available for replay if transformation rules change.
 
+## Robustness
+
+### Empty results
+
+An API response containing no tweets is a valid result, not an error. The extractor stores the empty
+payload in S3 and records the chunk as `succeeded` with `record_count = 0`. This proves that the
+interval was queried and distinguishes an empty interval from a skipped or failed interval. If an
+empty raw object is passed to the loader, normalization returns no records and the load completes
+successfully without writing to the `tweets` table.
+
+### API changes
+
+`TweetSource` isolates the pipeline from provider-specific endpoints, request parameters, and
+pagination. `XApiSource` converts every page into one stable internal `data`/`includes`/`meta`
+shape. Additional provider fields are ignored, while missing optional collections are treated as
+empty. The transformer also uses tolerant access and defaults for optional tweet and user fields.
+
+If X changes a structural contract that the adapter depends on—for example, returning an object
+instead of a list for `data`, or changing the type of `meta.next_token`—the adapter raises a
+descriptive `SourceResponseError`. The pipeline then records that chunk as failed rather than
+storing or loading a misleading partial result. Tests cover both additive and incompatible schema
+changes.
+
 ## Assumptions
 
 - Mock/offline mode is the default and does not require X credentials. Live mode can select X API
