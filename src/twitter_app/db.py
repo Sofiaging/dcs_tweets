@@ -41,11 +41,38 @@ class PostgresRepository:
         if not tweets:
             return
         with psycopg.connect(self.database_url) as connection:
-            connection.executemany(
-                """INSERT INTO tweets (tweet_id, anonymized_user_id, location, follower_count, tweeted_at, hashtags, tweet_count, is_retweet)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (tweet_id) DO UPDATE SET anonymized_user_id=excluded.anonymized_user_id,
-                location=excluded.location, follower_count=excluded.follower_count, tweeted_at=excluded.tweeted_at,
-                hashtags=excluded.hashtags, tweet_count=excluded.tweet_count, is_retweet=excluded.is_retweet""",
-                [(t.tweet_id, t.anonymized_user_id, t.location, t.follower_count, t.tweeted_at, t.hashtags, t.tweet_count, t.is_retweet) for t in tweets],
-            )
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    """INSERT INTO tweets (
+                        tweet_id,
+                        anonymized_user_id,
+                        location,
+                        follower_count,
+                        tweeted_at,
+                        hashtags,
+                        tweet_count,
+                        is_retweet
+                    )
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (tweet_id) DO UPDATE SET
+                        anonymized_user_id=excluded.anonymized_user_id,
+                        location=excluded.location,
+                        follower_count=excluded.follower_count,
+                        tweeted_at=excluded.tweeted_at,
+                        hashtags=excluded.hashtags,
+                        tweet_count=excluded.tweet_count,
+                        is_retweet=excluded.is_retweet""",
+                    [
+                        (
+                            tweet.tweet_id,
+                            tweet.anonymized_user_id,
+                            tweet.location,
+                            tweet.follower_count,
+                            tweet.tweeted_at,
+                            tweet.hashtags,
+                            tweet.tweet_count,
+                            tweet.is_retweet,
+                        )
+                        for tweet in tweets
+                    ],
+                )
