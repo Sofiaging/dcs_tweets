@@ -8,11 +8,13 @@ The loader reads only successful raw objects. It validates the provider envelope
 
 Transient API failures retry with exponential backoff. A failed chunk is marked independently, so a later retry does not repeat successful chunks. Empty results are valid successful chunks. Source payloads remain available for replay if transformation rules change.
 
-## Assumptions 
+## Assumptions
 
-- The default source is X API v2 recent search; historical availability depends on the supplied account tier.
+- Mock/offline mode is the default and does not require X credentials. Live mode can select X API
+  v2 recent or full-archive search; historical availability depends on the account tier.
 - Requested timestamps are UTC and must include a timezone.
-- PostgreSQL is the serving store and S3 is the immutable source of truth for raw responses.
+- A manually created local PostgreSQL database is the serving store, and AWS S3 is the immutable
+  source of truth for raw responses. Docker and MinIO are not required.
 - A deterministic HMAC is acceptable for pseudonymization; the secret is supplied through environment configuration.
 - Tweet fields are requested from the API where available: author location, public metrics, created time, entities, and referenced tweets.
 
