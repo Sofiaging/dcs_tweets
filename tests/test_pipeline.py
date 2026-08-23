@@ -175,3 +175,22 @@ def test_interrupted_run_is_finalized_as_failed() -> None:
         )
 
     assert repository.finished == "failed"
+
+
+@pytest.mark.parametrize(
+    ("chunk_hours", "extraction_workers", "message"),
+    [(0, 1, "chunk_hours"), (1, 0, "extraction_workers")],
+)
+def test_invalid_scaling_configuration_is_rejected(
+    chunk_hours, extraction_workers, message
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        extract(
+            datetime(2026, 1, 1, tzinfo=timezone.utc),
+            datetime(2026, 1, 1, 1, tzinfo=timezone.utc),
+            chunk_hours,
+            EmptySource(),
+            Store(),
+            Repository(),
+            extraction_workers,
+        )

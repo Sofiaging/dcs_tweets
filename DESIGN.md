@@ -72,6 +72,24 @@ Run-level interruption handling catches termination such as `Ctrl+C`, finalizes 
 `failed`, records the interruption type, and re-raises it so the process still exits immediately.
 This prevents interrupted executions from remaining indefinitely marked as `running`.
 
+### Scalability
+
+Time-based chunking makes extraction work independently partitionable. A bounded thread pool runs
+up to `EXTRACTION_WORKERS` chunks concurrently, while each chunk follows all X pagination tokens.
+The worker count is configurable so throughput can be balanced against X rate limits and local
+resource constraints. PostgreSQL chunk-status writes remain serialized in the coordinator, and
+each repository operation uses its own short-lived connection.
+
+Raw responses are written directly to S3 instead of PostgreSQL, allowing storage to grow
+independently from the serving database. Tweet loads use batch `executemany` operations and
+idempotent upserts. Indexes on tweet time, anonymized user ID, and failed chunk status support the
+main serving and operational queries.
+
+This design scales reasonably for the take-home workload, but very high-volume production use
+would replace the in-process thread pool with a distributed queue or orchestrator, use a database
+connection pool and bulk loading, and stream individual API pages to S3 instead of combining a
+whole chunk in memory.
+
 ## Assumptions
 
 - Mock/offline mode is the default and does not require X credentials. Live mode can select X API

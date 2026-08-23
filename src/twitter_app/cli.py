@@ -84,6 +84,7 @@ def extract_tweets(
             settings.aws_profile,
         ),
         PostgresRepository(settings.database_url),
+        settings.extraction_workers,
     )
     typer.echo(run_id)
 
@@ -115,6 +116,7 @@ def retry_failed_tweets(run_id: str) -> None:
             settings.aws_profile,
         ),
         repository,
+        settings.extraction_workers,
     )
     typer.echo(retry_run_id)
 

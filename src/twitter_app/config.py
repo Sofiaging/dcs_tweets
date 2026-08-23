@@ -39,6 +39,7 @@ class Settings:
     x_use_full_archive: bool
     x_use_mock_data: bool
     log_level: str
+    extraction_workers: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -59,4 +60,5 @@ class Settings:
             x_use_full_archive=boolean_setting("X_USE_FULL_ARCHIVE"),
             x_use_mock_data=use_mock_data,
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
+            extraction_workers=int(os.getenv("EXTRACTION_WORKERS", "4")),
         )

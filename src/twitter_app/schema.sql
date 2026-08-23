@@ -31,3 +31,12 @@ CREATE TABLE IF NOT EXISTS tweets (
     is_retweet BOOLEAN NOT NULL DEFAULT false,
     loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_chunks_status_start
+    ON pipeline_chunks (status, chunk_start);
+
+CREATE INDEX IF NOT EXISTS idx_tweets_tweeted_at
+    ON tweets (tweeted_at);
+
+CREATE INDEX IF NOT EXISTS idx_tweets_anonymized_user_id
+    ON tweets (anonymized_user_id);

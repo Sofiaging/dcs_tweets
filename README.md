@@ -48,6 +48,18 @@ X_USE_MOCK_DATA=true
 X_USE_FULL_ARCHIVE=false
 ```
 
+Extraction scalability is controlled independently:
+
+```dotenv
+CHUNK_HOURS=1
+API_PAGE_SIZE=100
+EXTRACTION_WORKERS=4
+```
+
+`CHUNK_HOURS` controls interval size, pagination exhausts every page within an interval, and
+`EXTRACTION_WORKERS` bounds the number of chunks making API/S3 progress concurrently. Reduce the
+worker count when approaching provider rate limits.
+
 `MockTweetSource` deterministically generates one X-shaped tweet per configured time chunk. To
 call X instead, set `X_USE_MOCK_DATA=false` and provide `X_BEARER_TOKEN`. Set
 `X_USE_FULL_ARCHIVE=true` to select the full-archive endpoint; otherwise the recent-search endpoint
