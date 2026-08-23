@@ -1,8 +1,15 @@
 from datetime import UTC, datetime
 
+import httpx
 import pytest
+from tenacity import wait_none
 
-from twitter_app.source import MockTweetSource, SourceResponseError, XApiSource
+from twitter_app.source import (
+    MockTweetSource,
+    SourceResponseError,
+    XApiSource,
+    is_retryable_source_error,
+)
 
 
 class Response:
@@ -24,6 +31,29 @@ class Client:
     def get(self, endpoint, params):
         self.calls.append((endpoint, params.copy()))
         return Response(next(self.pages))
+
+
+class ErrorThenResponseClient:
+    def __init__(self, results):
+        self.results = iter(results)
+        self.calls = 0
+
+    def get(self, endpoint, params):
+        self.calls += 1
+        result = next(self.results)
+        if isinstance(result, BaseException):
+            raise result
+        return Response(result)
+
+
+def status_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("GET", "https://api.x.com/2/tweets/search/all")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"X returned HTTP {status_code}",
+        request=request,
+        response=response,
+    )
 
 
 def test_endpoint_is_selected_by_archive_flag() -> None:
@@ -113,3 +143,44 @@ def test_search_reports_incompatible_response_changes(page, message) -> None:
             datetime(2026, 1, 1, tzinfo=UTC),
             datetime(2026, 1, 2, tzinfo=UTC),
         )
+
+
+@pytest.mark.parametrize("status_code", [429, 500, 503])
+def test_rate_limit_and_server_errors_are_retryable(status_code) -> None:
+    assert is_retryable_source_error(status_error(status_code)) is True
+
+
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404])
+def test_client_and_authentication_errors_are_not_retryable(status_code) -> None:
+    assert is_retryable_source_error(status_error(status_code)) is False
+
+
+def test_temporary_source_failure_is_retried() -> None:
+    source = XApiSource("token")
+    source.client = ErrorThenResponseClient([
+        status_error(503),
+        {"data": [], "meta": {"result_count": 0}},
+    ])
+
+    payload = source.search.retry_with(wait=wait_none())(
+        source,
+        datetime(2026, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 2, tzinfo=UTC),
+    )
+
+    assert source.client.calls == 2
+    assert payload["meta"]["result_count"] == 0
+
+
+def test_permanent_source_failure_is_not_retried() -> None:
+    source = XApiSource("token")
+    source.client = ErrorThenResponseClient([status_error(401)])
+
+    with pytest.raises(httpx.HTTPStatusError):
+        source.search.retry_with(wait=wait_none())(
+            source,
+            datetime(2026, 1, 1, tzinfo=UTC),
+            datetime(2026, 1, 2, tzinfo=UTC),
+        )
+
+    assert source.client.calls == 1

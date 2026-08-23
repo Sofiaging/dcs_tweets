@@ -31,6 +31,19 @@ descriptive `SourceResponseError`. The pipeline then records that chunk as faile
 storing or loading a misleading partial result. Tests cover both additive and incompatible schema
 changes.
 
+### Source unavailability
+
+Live X requests have a 30-second timeout and retry temporary failures up to four attempts with
+exponential backoff, capped at 30 seconds between attempts. Connection failures, timeouts, HTTP 429
+rate limits, and HTTP 5xx provider failures are retryable. Permanent request and authentication
+errors such as HTTP 400, 401, and 403 fail immediately because repeating the same request cannot
+resolve them.
+
+If all attempts fail, extraction records that date chunk as `failed`, including the error, and
+continues with later independent chunks. The overall pipeline run finishes as `failed`, while
+successful chunks and their raw S3 objects remain intact. A source outage therefore does not erase
+completed work or prevent the pipeline from recording exactly which intervals need reprocessing.
+
 ## Assumptions
 
 - Mock/offline mode is the default and does not require X credentials. Live mode can select X API

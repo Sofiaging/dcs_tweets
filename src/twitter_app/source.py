@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Protocol
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 
 class TweetSource(Protocol):
@@ -19,6 +19,16 @@ def response_items(container: dict[str, Any], key: str, path: str) -> list[dict[
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         raise SourceResponseError(f"Expected {path} to be a list of objects")
     return value
+
+
+def is_retryable_source_error(error: BaseException) -> bool:
+    """Retry temporary connectivity, rate-limit, and provider-side failures."""
+    if isinstance(error, httpx.TransportError):
+        return True
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+        return status_code == 429 or status_code >= 500
+    return False
 
 
 class MockTweetSource:
@@ -72,7 +82,7 @@ class XApiSource:
         )
 
     @retry(
-        retry=retry_if_exception_type((httpx.HTTPError,)),
+        retry=retry_if_exception(is_retryable_source_error),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         stop=stop_after_attempt(4),
         reraise=True,
