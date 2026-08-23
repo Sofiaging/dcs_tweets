@@ -30,6 +30,17 @@ class PostgresRepository:
                 (status, error, run_id),
             )
 
+    def failed_chunks(self, run_id: str) -> list[tuple[Any, Any]]:
+        with psycopg.connect(self.database_url) as connection:
+            rows = connection.execute(
+                """SELECT chunk_start, chunk_end
+                FROM pipeline_chunks
+                WHERE run_id = %s AND status = 'failed'
+                ORDER BY chunk_start""",
+                (run_id,),
+            ).fetchall()
+        return [(row[0], row[1]) for row in rows]
+
     def record_chunk(self, run_id: str, start: Any, end: Any, key: str | None, status: str, count: int = 0, error: str | None = None) -> None:
         with psycopg.connect(self.database_url) as connection:
             connection.execute(

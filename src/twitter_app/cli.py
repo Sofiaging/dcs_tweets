@@ -6,8 +6,8 @@ import typer
 
 from .config import Settings
 from .db import PostgresRepository
-from .pipeline import extract, load
-from .source import MockTweetSource, XApiSource
+from .pipeline import extract, extract_intervals, load
+from .source import MockTweetSource, TweetSource, XApiSource
 from .storage import S3RawStore
 
 app = typer.Typer(help="Extract and load #ChargeNow tweets.")
@@ -32,6 +32,16 @@ def configured_settings() -> Settings:
     settings = Settings.from_env()
     configure_logging(settings.log_level)
     return settings
+
+
+def configured_source(settings: Settings) -> TweetSource:
+    if settings.x_use_mock_data:
+        return MockTweetSource()
+    return XApiSource(
+        settings.x_bearer_token,
+        settings.api_page_size,
+        settings.x_use_full_archive,
+    )
 
 
 def parse_timestamp(value: str) -> datetime:
@@ -61,15 +71,7 @@ def extract_tweets(
     settings = configured_settings()
     start_timestamp = parse_timestamp(start)
     end_timestamp = parse_timestamp(end)
-    source = (
-        MockTweetSource()
-        if settings.x_use_mock_data
-        else XApiSource(
-            settings.x_bearer_token,
-            settings.api_page_size,
-            settings.x_use_full_archive,
-        )
-    )
+    source = configured_source(settings)
     run_id = extract(
         start_timestamp,
         end_timestamp,
@@ -84,6 +86,37 @@ def extract_tweets(
         PostgresRepository(settings.database_url),
     )
     typer.echo(run_id)
+
+
+@app.command()
+def retry_failed_tweets(run_id: str) -> None:
+    """Create a new run containing only failed chunks from an earlier run."""
+    settings = configured_settings()
+    repository = PostgresRepository(settings.database_url)
+    intervals = repository.failed_chunks(run_id)
+    if not intervals:
+        typer.echo(f"No failed chunks found for run {run_id}")
+        return
+
+    logging.getLogger(__name__).info(
+        "event=reprocessing_started source_run_id=%s failed_chunk_count=%s",
+        run_id,
+        len(intervals),
+    )
+    retry_run_id = extract_intervals(
+        intervals[0][0],
+        intervals[-1][1],
+        intervals,
+        configured_source(settings),
+        S3RawStore(
+            settings.s3_bucket,
+            settings.s3_endpoint_url,
+            settings.s3_region,
+            settings.aws_profile,
+        ),
+        repository,
+    )
+    typer.echo(retry_run_id)
 
 
 @app.command()

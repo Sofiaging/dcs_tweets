@@ -57,6 +57,21 @@ Verbose `botocore` and `httpx` informational logs are suppressed so application 
 remain readable. `LOG_LEVEL=DEBUG`, `INFO`, `WARNING`, or `ERROR` can adjust verbosity without a
 code change.
 
+### Fault tolerance and historical reprocessing
+
+Any timezone-aware historical date range can be extracted again. Each attempt receives a new run
+ID and writes to new immutable S3 keys, so reprocessing never overwrites the earlier raw evidence.
+Loading is idempotent because PostgreSQL upserts records by `tweet_id`.
+
+For partial failures, `retry-failed-tweets <run-id>` reads only failed chunk boundaries from
+`pipeline_chunks` and creates a new extraction run containing those intervals. Successful chunks
+from the original run are not requested again. The original run remains unchanged as an audit
+record, and the retry has its own run and chunk statuses.
+
+Run-level interruption handling catches termination such as `Ctrl+C`, finalizes the run as
+`failed`, records the interruption type, and re-raises it so the process still exits immediately.
+This prevents interrupted executions from remaining indefinitely marked as `running`.
+
 ## Assumptions
 
 - Mock/offline mode is the default and does not require X credentials. Live mode can select X API

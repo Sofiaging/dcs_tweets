@@ -56,11 +56,16 @@ is used.
 ```bash
 twitter-pipeline extract-tweets --start 2026-01-01T00:00:00Z --end 2026-01-02T00:00:00Z
 twitter-pipeline load-tweets <run-id> --key '<s3-object-key>'
+twitter-pipeline retry-failed-tweets <failed-run-id>
 ```
 
 Extraction writes raw objects to the configured S3 bucket and records their keys in
 `pipeline_chunks`. Loading reads the selected keys, normalizes and anonymizes the tweets, and
 upserts them into the `tweets` table.
+
+Historical ranges can be submitted again safely: every extraction receives a new run ID and new
+immutable S3 keys, while loading upserts by `tweet_id`. `retry-failed-tweets` creates a new run for
+only the failed intervals of an earlier run, leaving its successful chunks untouched.
 
 ## Development
 
