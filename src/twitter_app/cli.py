@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 
 import typer
@@ -10,6 +11,27 @@ from .source import MockTweetSource, XApiSource
 from .storage import S3RawStore
 
 app = typer.Typer(help="Extract and load #ChargeNow tweets.")
+
+
+def configure_logging(level: str) -> None:
+    numeric_level = getattr(logging, level, None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid LOG_LEVEL: {level}")
+    logging.Formatter.converter = time.gmtime
+    logging.basicConfig(
+        level=numeric_level,
+        format="%(asctime)sZ level=%(levelname)s logger=%(name)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        force=True,
+    )
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+def configured_settings() -> Settings:
+    settings = Settings.from_env()
+    configure_logging(settings.log_level)
+    return settings
 
 
 def parse_timestamp(value: str) -> datetime:
@@ -24,8 +46,10 @@ def parse_timestamp(value: str) -> datetime:
 
 @app.command()
 def init_db() -> None:
-    settings = Settings.from_env()
+    settings = configured_settings()
+    logging.getLogger(__name__).info("event=database_initialization_started")
     PostgresRepository(settings.database_url).initialize()
+    logging.getLogger(__name__).info("event=database_initialization_succeeded")
     typer.echo("Database schema initialized")
 
 
@@ -34,7 +58,7 @@ def extract_tweets(
     start: str = typer.Option(..., "--start"),
     end: str = typer.Option(..., "--end"),
 ) -> None:
-    settings = Settings.from_env()
+    settings = configured_settings()
     start_timestamp = parse_timestamp(start)
     end_timestamp = parse_timestamp(end)
     source = (
@@ -64,7 +88,7 @@ def extract_tweets(
 
 @app.command()
 def load_tweets(run_id: str, keys: list[str] = typer.Option(..., "--key")) -> None:
-    settings = Settings.from_env()
+    settings = configured_settings()
     count = load(
         run_id,
         keys,
@@ -76,5 +100,4 @@ def load_tweets(run_id: str, keys: list[str] = typer.Option(..., "--key")) -> No
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     app()

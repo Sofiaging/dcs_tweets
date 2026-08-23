@@ -38,6 +38,7 @@ class Settings:
     api_page_size: int
     x_use_full_archive: bool
     x_use_mock_data: bool
+    log_level: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,4 +58,5 @@ class Settings:
             api_page_size=int(os.getenv("API_PAGE_SIZE", "100")),
             x_use_full_archive=boolean_setting("X_USE_FULL_ARCHIVE"),
             x_use_mock_data=use_mock_data,
+            log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
         )

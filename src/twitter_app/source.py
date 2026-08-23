@@ -1,8 +1,18 @@
+import logging
 from datetime import datetime
 from typing import Any, Protocol
 
 import httpx
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class TweetSource(Protocol):
@@ -85,6 +95,7 @@ class XApiSource:
         retry=retry_if_exception(is_retryable_source_error),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         stop=stop_after_attempt(4),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
     def search(self, start: datetime, end: datetime) -> dict[str, Any]:

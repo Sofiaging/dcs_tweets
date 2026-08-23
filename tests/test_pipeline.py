@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from twitter_app.pipeline import extract, load
@@ -63,7 +64,8 @@ class EmptySource:
         }
 
 
-def test_empty_extraction_is_stored_as_a_successful_chunk() -> None:
+def test_empty_extraction_is_stored_as_a_successful_chunk(caplog) -> None:
+    caplog.set_level(logging.INFO)
     repository = Repository()
     store = Store()
 
@@ -93,6 +95,10 @@ def test_empty_extraction_is_stored_as_a_successful_chunk() -> None:
         {},
     )]
     assert repository.finished == "succeeded"
+    assert "event=extraction_started" in caplog.text
+    assert "event=chunk_succeeded" in caplog.text
+    assert "record_count=0" in caplog.text
+    assert "event=extraction_finished" in caplog.text
 
 
 class EmptyRawStore:
@@ -112,10 +118,15 @@ class LoadRepository:
         self.upserted.extend(tweets)
 
 
-def test_loading_empty_raw_data_is_a_successful_no_op() -> None:
+def test_loading_empty_raw_data_is_a_successful_no_op(caplog) -> None:
+    caplog.set_level(logging.INFO)
     repository = LoadRepository()
 
     loaded = load("run-id", ["empty.json"], EmptyRawStore(), repository, "secret")
 
     assert loaded == 0
     assert repository.upserted == []
+    assert "event=load_started" in caplog.text
+    assert "event=object_load_succeeded" in caplog.text
+    assert "record_count=0" in caplog.text
+    assert "event=load_finished" in caplog.text

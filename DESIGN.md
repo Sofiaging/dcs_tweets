@@ -44,6 +44,19 @@ continues with later independent chunks. The overall pipeline run finishes as `f
 successful chunks and their raw S3 objects remain intact. A source outage therefore does not erase
 completed work or prevent the pipeline from recording exactly which intervals need reprocessing.
 
+### Logging
+
+The CLI configures UTC application logs using the `LOG_LEVEL` environment setting. Logs use a
+consistent key-value format and include event names plus operational identifiers such as `run_id`,
+chunk boundaries, S3 keys, record counts, source type, and final status. Extraction and loading log
+their start, per-chunk or per-object progress, completion, and failures. Retry attempts are emitted
+at warning level, while failed chunks include a traceback.
+
+Secrets, authorization headers, anonymization keys, and tweet payloads are never written to logs.
+Verbose `botocore` and `httpx` informational logs are suppressed so application lifecycle events
+remain readable. `LOG_LEVEL=DEBUG`, `INFO`, `WARNING`, or `ERROR` can adjust verbosity without a
+code change.
+
 ## Assumptions
 
 - Mock/offline mode is the default and does not require X credentials. Live mode can select X API
