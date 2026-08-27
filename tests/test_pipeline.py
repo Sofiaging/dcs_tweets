@@ -93,6 +93,7 @@ def test_empty_extraction_is_stored_as_a_successful_chunk(caplog) -> None:
             f"{run_id}/2026-01-01T00:00:00+00:00",
             "succeeded",
             0,
+            None,
         ),
         {},
     )]

@@ -16,7 +16,7 @@ class TweetRecord(BaseModel):
     tweet_count: int | None = Field(default=None, ge=0)
     is_retweet: bool = False
 
-
+# below is not being used anywhere, but we keep it for reference in case we want to use it in the future
 class RawEnvelope(BaseModel):
     """Exact provider response plus extraction metadata."""
 
